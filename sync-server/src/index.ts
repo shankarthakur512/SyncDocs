@@ -23,10 +23,12 @@ import { verifySyncToken } from "./auth";
 
 const port = Number(process.env.PORT ?? 1234);
 
-const server = Server.configure({
+// Hocuspocus v4: instantiate the Server directly (the old `Server.configure`
+// static was removed).
+const server = new Server({
   port,
 
-/// Hocuspocus calls this hook when a client connects and presents a sync token.
+  // Hocuspocus calls this hook when a client connects and presents a sync token.
   async onAuthenticate(data) {
     const claims = await verifySyncToken(data.token);
 
@@ -37,7 +39,7 @@ const server = Server.configure({
 
     // Viewers may observe live changes but never broadcast their own.
     if (claims.role === "VIEWER") {
-      data.connection.readOnly = true;
+      data.connectionConfig.readOnly = true;
     }
 
     // Stored on the connection context (available to later hooks / presence).
