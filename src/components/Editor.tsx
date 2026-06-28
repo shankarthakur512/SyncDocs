@@ -29,13 +29,8 @@ interface EditorProps {
 /**
  * The rich-text editor, bound to a Yjs document.
  *
- * - StarterKit's built-in history is DISABLED (`undoRedo: false`) because the
- *   Collaboration extension provides CRDT-aware undo/redo via Yjs. Running both
- *   would corrupt the undo stack once remote edits arrive.
- * - `immediatelyRender: false` prevents an SSR/hydration mismatch: the editor
- *   must render on the client where the Yjs doc + IndexedDB live.
- * - No `content` prop is passed — content is owned entirely by the Y.Doc, which
- *   is hydrated from IndexedDB before this component mounts.
+* This is the main editing surface for a document. It is read-only for VIEWERs and editable for OWNERs/EDITORs. The formatting toolbar is rendered by the parent so it can sit above the page scroll.   
+*
  */
 export default function Editor({ doc, editable, renderToolbar }: EditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);

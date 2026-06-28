@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AppHeader from "@/components/AppHeader";
 import Footer from "@/components/Footer";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Local-First Doc Editor",
@@ -38,6 +39,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body className="min-h-screen flex flex-col">
+        <ServiceWorkerRegister />
         <AppHeader />
         <div className="flex-1 flex flex-col">{children}</div>
         <Footer />

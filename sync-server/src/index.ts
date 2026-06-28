@@ -3,22 +3,9 @@ import { verifySyncToken } from "./auth";
 
 /**
  * SyncDocs real-time collaboration relay.
- *
- * ROLE IN THE ARCHITECTURE
- * ------------------------
- * This is a low-latency RELAY: it propagates Yjs updates between connected
- * clients in real time. Durable persistence is handled by the Next.js app
- * (HTTP `/sync` → Postgres `DocumentState`), so this server is intentionally
- * stateless/in-memory and can scale or restart without data loss — clients
- * re-hydrate from the app's HTTP state endpoint and re-broadcast.
- *
- * SECURITY
- *  - Every connection must present a valid sync token (see src/auth.ts). The
- *    token is checked against the requested document, so a user can only join
- *    a document they were granted access to.
- *  - VIEWERS connect read-only: Hocuspocus drops any update they try to send,
- *    enforcing the RBAC rule that viewers cannot push state — at the protocol
- *    level, independent of the UI.
+  * This server is a relay for the Hocuspocus real-time collaboration protocol. It
+ * does not store any data itself, but instead relays changes between clients and
+ * the main SyncDocs backend (which stores the actual document data).
  */
 
 const port = Number(process.env.PORT ?? 1234);

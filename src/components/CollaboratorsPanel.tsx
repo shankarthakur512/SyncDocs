@@ -24,10 +24,7 @@ interface CollaboratorsPanelProps {
 /**
  * Collaborators management panel.
  *
- * Everyone with access sees the collaborator list + roles. OWNERs additionally
- * get controls to invite by email, change roles, and remove members. All
- * mutations go through the RBAC-protected API; server-side errors (e.g. the
- * "must keep one owner" rule) are surfaced inline.
+* Displays a list of members and their roles, plus an invite form for owners.
  */
 export default function CollaboratorsPanel({
   documentId,

@@ -4,7 +4,7 @@ import { AUTHOR } from "@/lib/constants/strings";
  * Application footer.
  *
  * The assignment requires the author's name, GitHub and LinkedIn in the footer.
- * Update the URLs in `src/lib/constants/strings.ts` (AUTHOR).
+ * 
  */
 export default function Footer() {
   return (
