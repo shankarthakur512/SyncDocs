@@ -6,8 +6,11 @@ import { useEffect } from "react";
  * Registers the service worker (see /public/sw.js) so the app shell works
  * offline, including after a hard refresh.
  *
- * Skipped on localhost: in development, Next.js serves un-hashed, frequently
- * changing assets, and an aggressive cache would serve stale files. We also
+ * In development, we proactively unregister any service worker to avoid caching surprises.
+ *
+ * In production, we register the service worker after the page load event so it
+ * never competes with first paint. Registration failures are non-fatal; the app
+ * still works online.
  * proactively unregister any worker there to avoid dev caching surprises.
  */
 export default function ServiceWorkerRegister() {

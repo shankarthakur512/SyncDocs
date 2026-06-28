@@ -5,15 +5,12 @@ import Footer from "@/components/Footer";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "Local-First Doc Editor",
+  title: "SyncDocs",
   description:
-    "A local-first, offline-capable collaborative document editor with deterministic conflict resolution and version history.",
+    "A local-first, offline-capable collaborative document editor",
 };
 
-/**
- * Inline script that applies the saved (or system) theme BEFORE the page paints.
- * This prevents a flash-of-wrong-theme on load. Kept tiny and dependency-free.
- */
+
 const themeBootScript = `
 (function () {
   try {
