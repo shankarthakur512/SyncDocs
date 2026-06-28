@@ -1,0 +1,174 @@
+// =============================================================================
+// Prisma schema — Local-First Collaborative Document Editor
+// -----------------------------------------------------------------------------
+// Database: PostgreSQL (Neon).
+//
+// Design notes:
+//  - Auth models (User/Account/Session/VerificationToken) follow the Auth.js
+//    (NextAuth v5) Prisma adapter contract.
+//  - Authorization is RBAC, modelled by `DocumentMembership` rows that bind a
+//    user to a document with a `Role`. Every document has exactly one OWNER
+//    membership (created atomically with the document).
+//  - `directUrl` is used for migrations (Neon recommends a direct, non-pooled
+//    connection for DDL); `url` may point at the pooled endpoint for the app.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// RBAC role hierarchy.
+// Ordering matters conceptually: OWNER > EDITOR > VIEWER. The numeric ranking is
+// enforced in application code (see src/lib/rbac/roles.ts), not in the DB.
+// -----------------------------------------------------------------------------
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+// How a version snapshot was created.
+enum VersionKind {
+  MANUAL // user clicked "Save version"
+  AUTO   // captured automatically on interval/threshold
+}
+
+//
+
+/// An authenticated person. Created/updated by the Auth.js Prisma adapter.
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  accounts       Account[]
+  sessions       Session[]
+  memberships    DocumentMembership[]
+  ownedDocuments Document[]           @relation("DocumentOwner")
+}
+
+/// OAuth provider account linked to a user (e.g. Google). Adapter-managed.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Persisted session (kept for adapter completeness even though the app uses
+/// JWT sessions — the WS server in a later phase validates the JWT).
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Email verification tokens. Adapter-managed.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+
+
+/// A collaborative document. The Yjs/CRDT content itself is synced separately
+/// (Phase 2); this row is the document's identity + ownership + permission root.
+model Document {
+  id        String   @id @default(cuid())
+  title     String   @default("Untitled document")
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The owner is denormalised here for fast checks and cascade deletes; the
+  // authoritative permission is still the OWNER membership row.
+  owner       User                 @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships DocumentMembership[]
+  state       DocumentState?
+  versions    DocumentVersion[]
+
+  @@index([ownerId])
+}
+
+/// The canonical, server-side merged CRDT state of a document (one row per doc).
+///
+/// This is where offline edits from every client converge: each client pushes
+/// its local Yjs update, the server merges it into `state` (a CRDT union — order
+/// independent and lossless), and returns whatever the client is missing. This
+/// row is the single source of truth the server holds; clients keep their own
+/// local copy in IndexedDB.
+model DocumentState {
+  documentId String   @id
+  state      Bytes // Y.encodeStateAsUpdate(doc) — the full merged document state
+  updatedAt  DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+/// An immutable point-in-time snapshot of a document's state (a "version").
+///
+/// Snapshots are full encoded Yjs states, so any version's exact content can be
+/// reconstructed for preview ("time travel") or restore. Restoring never
+/// destroys data: the current state is auto-snapshotted first.
+model DocumentVersion {
+  id          String      @id @default(cuid())
+  documentId  String
+  label       String?     // optional human label, e.g. "Before big edit"
+  kind        VersionKind @default(MANUAL)
+  state       Bytes // Y.encodeStateAsUpdate(doc) at capture time
+  createdById String? // who captured it (null for system/auto in some cases)
+  createdAt   DateTime    @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+}
+
+/// Binds a user to a document with a role — the heart of RBAC.
+/// A user can have at most one membership per document.
+model DocumentMembership {
+  id         String   @id @default(cuid())
+  documentId String
+  userId     String
+  role       Role     @default(VIEWER)
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
+  @@index([documentId])
+}

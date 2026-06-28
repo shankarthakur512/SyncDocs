@@ -1,0 +1,20 @@
+# Render Blueprint — deploys the standalone sync-server only.
+# The Next.js app is deployed on Vercel; Render ignores everything outside
+# `rootDir`, so the two services deploy independently from the same repo.
+#
+# Usage: Render Dashboard → New → Blueprint → pick this repo. Then set the
+# SYNC_JWT_SECRET value (must match the Next.js app's env).
+services:
+  - type: web
+    name: syncdocs-sync-server
+    runtime: node
+    rootDir: sync-server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: SYNC_JWT_SECRET
+        sync: false # set manually in the dashboard (secret)
+      - key: NODE_VERSION
+        value: "22"

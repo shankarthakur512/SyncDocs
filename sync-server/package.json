@@ -1,0 +1,21 @@
+{
+  "name": "syncdocs-sync-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone real-time collaboration relay (Hocuspocus/Yjs) for SyncDocs. Deployed separately from the Next.js app (Vercel can't hold WebSockets).",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^4.3.0",
+    "jose": "^6.2.3",
+    "tsx": "^4.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

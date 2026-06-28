@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens, theme-able via CSS variables.
+ *
+ * THEMING MODEL
+ * -------------
+ * The active theme is controlled by the `data-theme` attribute on <html>, set
+ * by an inline script (see layout.tsx) BEFORE first paint to avoid a
+ * flash-of-wrong-theme. A `prefers-color-scheme` fallback covers the rare case
+ * where JS is disabled and the attribute is never set.
+ *
+ * `--background` = app canvas, `--surface` = the document "page" that sits on
+ * top of it, giving the editor a clear, bounded sheet-of-paper look.
+ */
+:root,
+:root[data-theme="light"] {
+  --background: #f4f5f7;
+  --surface: #ffffff;
+  --foreground: #0a0a0a;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+}
+
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --surface: #161618;
+  --foreground: #ededed;
+  --muted: #9ca3af;
+  --border: #2a2a2e;
+  --accent: #3b82f6;
+}
+
+/* No-JS fallback: honour the OS preference when no explicit theme is set. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --background: #0a0a0a;
+    --surface: #161618;
+    --foreground: #ededed;
+    --muted: #9ca3af;
+    --border: #2a2a2e;
+    --accent: #3b82f6;
+  }
+}
+
+/* Smooth, non-jarring transition when toggling themes. */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Decorative helpers for the landing / sign-in pages                          */
+/* -------------------------------------------------------------------------- */
+
+/* Animated gradient "blobs" used as a colourful, soft background. */
+@keyframes blob {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -32px) scale(1.12);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.94);
+  }
+}
+
+.animate-blob {
+  animation: blob 16s ease-in-out infinite;
+}
+
+/* Brand gradient text (works in both themes). */
+.text-gradient {
+  background-image: linear-gradient(120deg, #2563eb, #7c3aed 50%, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob {
+    animation: none;
+  }
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* -------------------------------------------------------------------------- */
+/* TipTap / ProseMirror editor styling                                         */
+/* The editor renders into `.ProseMirror`; these rules give documents a clean, */
+/* readable, word-processor-like appearance.                                   */
+/* -------------------------------------------------------------------------- */
+.ProseMirror {
+  outline: none;
+  min-height: 60vh;
+  line-height: 1.7;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ul {
+  list-style: disc;
+}
+
+.ProseMirror ol {
+  list-style: decimal;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  color: var(--muted);
+}
+
+.ProseMirror pre {
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+.ProseMirror code {
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.875em;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+/* Selected image highlight for clear visual feedback. */
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid var(--accent);
+}
+
+/* Placeholder text shown when the document is empty. */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted);
+  pointer-events: none;
+  height: 0;
+}
