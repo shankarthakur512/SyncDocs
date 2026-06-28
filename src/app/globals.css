@@ -1,17 +1,8 @@
 @import "tailwindcss";
 
 /*
- * Design tokens, theme-able via CSS variables.
- *
- * THEMING MODEL
- * -------------
- * The active theme is controlled by the `data-theme` attribute on <html>, set
- * by an inline script (see layout.tsx) BEFORE first paint to avoid a
- * flash-of-wrong-theme. A `prefers-color-scheme` fallback covers the rare case
- * where JS is disabled and the attribute is never set.
- *
- * `--background` = app canvas, `--surface` = the document "page" that sits on
- * top of it, giving the editor a clear, bounded sheet-of-paper look.
+  Global CSS variables for light and dark themes.
+  These are used throughout the app to ensure consistent theming.
  */
 :root,
 :root[data-theme="light"] {

@@ -41,9 +41,9 @@ export const HOME_FEATURES = [
 export const AUTHOR = {
   builtBy: "Built by",
   name: "shankar Thakur",
-  githubUrl: "https://github.com/your-username",
+  githubUrl: "https://github.com/shankarthakur512",
   githubLabel: "GitHub",
-  linkedinUrl: "https://www.linkedin.com/in/your-handle",
+  linkedinUrl: "https://www.linkedin.com/in/shankar-thakur-4323041b8",
   linkedinLabel: "LinkedIn",
 } as const;
 

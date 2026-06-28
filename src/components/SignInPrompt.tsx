@@ -4,8 +4,6 @@ import { ACTIONS, APP, HOME_FEATURES } from "@/lib/constants/strings";
 /**
  * Landing hero shown to signed-out visitors.
  *
- * Documents live in the database and require authentication, so this colourful
- * hero introduces the product and invites the user to sign in. Decorative
  * gradient "blobs" sit behind the content and are theme-independent.
  */
 export default function SignInPrompt() {

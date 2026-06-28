@@ -7,9 +7,6 @@ import { NotFoundError, ValidationError } from "@/lib/rbac/errors";
  * Documents service.
  *
  * All data access for documents/memberships funnels through here so that:
- *  - every read/write is scoped to the caller's membership (tenant isolation),
- *  - authorization is checked before any mutation,
- *  - invariants (e.g. "a document always has ≥1 owner") are enforced centrally.
  *
  * Route handlers stay thin and just translate HTTP ⇄ these functions.
  */
