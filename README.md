@@ -13,5 +13,23 @@ npm run db:generate         # generate Prisma client
 npm run db:migrate          # create tables
 
 # 4. Run
-npm run dev                 # open http://localhost:3000
+npm run dev                 # 
 ```
+
+## Tests
+
+```bash
+npm test            # Vitest unit tests (CRDT merge, RBAC, validation)
+npm run test:coverage
+```
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` and PR:
+
+- **App:** `npm ci` → type-check → unit tests (coverage) → `next build`.
+- **Sync-server:** install → type-check.
+
+Continuous deployment: **Vercel** auto-deploys the app, **Render** auto-deploys
+`sync-server/`. Enable branch protection requiring these checks to gate merges.
+

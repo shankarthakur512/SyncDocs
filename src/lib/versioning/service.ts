@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { authorizeDocument } from "@/lib/rbac/authorize";
 import { NotFoundError } from "@/lib/rbac/errors";
 import {
+  compactState,
   diffForClient,
   emptyState,
   fromBase64,
@@ -20,6 +21,24 @@ import type { SyncResponse, VersionKind } from "./types";
  *   - sync / save / restore require `document:write` (VIEWERs are blocked),
  *   - listing / reading versions require `document:read` (membership).
  */
+
+/* -------------------------------------------------------------------------- */
+/* Document state-size policy (bounds growth over time)                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * When the merged canonical state exceeds this size, compact it (garbage-collect
+ * CRDT tombstones) before storing. Compaction is mildly CPU-bound, so we only do
+ * it past a threshold rather than on every keystroke-sized sync.
+ */
+const COMPACT_THRESHOLD_BYTES = 256 * 1024; // 256 KB
+
+/**
+ * Retention for AUTO snapshots per document. MANUAL versions are kept forever;
+ * automatic ones are pruned to the most recent N so history doesn't grow without
+ * bound. (Generous enough to give real time-travel coverage.)
+ */
+const MAX_AUTO_VERSIONS = 20;
 
 /** Reads the canonical state for a document, or an empty doc state if none yet. */
 async function loadCanonical(documentId: string): Promise<Uint8Array> {
@@ -51,7 +70,12 @@ export async function syncDocument(
     const canonical = row ? new Uint8Array(row.state) : emptyState();
 
     // The merge — order-independent, lossless union of all edits.
-    const next = mergeState(canonical, incoming);
+    let next = mergeState(canonical, incoming);
+
+    // Bound growth: garbage-collect tombstones once the state gets large.
+    if (next.byteLength > COMPACT_THRESHOLD_BYTES) {
+      next = compactState(next);
+    }
 
     await tx.documentState.upsert({
       where: { documentId },
@@ -100,6 +124,26 @@ export async function getVersionState(
   return toBase64(new Uint8Array(version.state));
 }
 
+/**
+ * Prunes old AUTO snapshots beyond {@link MAX_AUTO_VERSIONS}, keeping the most
+ * recent ones. MANUAL versions are never pruned. This bounds the number of
+ * snapshot rows (and their stored bytes) per document over time.
+ */
+async function pruneAutoVersions(documentId: string): Promise<void> {
+  // Find AUTO versions older than the retention window (skip the newest N).
+  const stale = await prisma.documentVersion.findMany({
+    where: { documentId, kind: "AUTO" },
+    orderBy: { createdAt: "desc" },
+    skip: MAX_AUTO_VERSIONS,
+    select: { id: true },
+  });
+  if (stale.length > 0) {
+    await prisma.documentVersion.deleteMany({
+      where: { id: { in: stale.map((v) => v.id) } },
+    });
+  }
+}
+
 /** Captures the current canonical state as a new version (snapshot). */
 export async function saveVersion(
   userId: string,
@@ -110,7 +154,7 @@ export async function saveVersion(
   await authorizeDocument(userId, documentId, "document:write");
   const state = await loadCanonical(documentId);
 
-  return prisma.documentVersion.create({
+  const version = await prisma.documentVersion.create({
     data: {
       documentId,
       label: label ?? null,
@@ -126,6 +170,11 @@ export async function saveVersion(
       createdAt: true,
     },
   });
+
+  // Enforce AUTO-snapshot retention after each automatic capture.
+  if (kind === "AUTO") await pruneAutoVersions(documentId);
+
+  return version;
 }
 
 /**
@@ -172,6 +221,9 @@ export async function restoreVersion(
       update: { state: Buffer.from(next) },
     });
   });
+
+  // The restore added an AUTO safety snapshot — keep retention bounded.
+  await pruneAutoVersions(documentId);
 
   // Touch the document so its @updatedAt refreshes (empty update still bumps it).
   await prisma.document.update({ where: { id: documentId }, data: {} });

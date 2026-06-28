@@ -7,6 +7,7 @@ import {
   encodeState,
   mergeState,
   revertContent,
+  compactState,
   docFromState,
 } from "@/lib/versioning/crdt";
 
@@ -80,5 +81,25 @@ describe("revertContent (true revert)", () => {
   });
 });
 
+describe("compactState (state-size handling)", () => {
+  it("preserves content while not growing the state", () => {
+    // Build up history: insert a lot of text, then delete most of it. The raw
+    // state carries tombstones for the deleted content.
+    const doc = new Y.Doc();
+    const t = doc.getText("t");
+    t.insert(0, "x".repeat(500));
+    t.delete(0, 480); // leaves "x".repeat(20), plus deletion tombstones
+    const raw = encodeState(doc);
+
+    const compacted = compactState(raw);
+
+    // Content is identical after compaction ...
+    expect(docFromState(compacted).getText("t").toString()).toBe(
+      docFromState(raw).getText("t").toString(),
+    );
+    // ... and the compacted state is no larger than the raw one.
+    expect(compacted.byteLength).toBeLessThanOrEqual(raw.byteLength);
+  });
+});
 
 //we can more test cases later on if needed

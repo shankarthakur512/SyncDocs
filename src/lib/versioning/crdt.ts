@@ -104,6 +104,25 @@ export function stateVectorOf(state: Uint8Array): Uint8Array {
 }
 
 /**
+ * Compacts an encoded state to bound growth over time.
+ *
+ * A long-lived CRDT accumulates "tombstones" (metadata for deleted content) and
+ * redundant update structure. Loading the state into a fresh Y.Doc — which has
+ * garbage collection enabled by default — drops tombstones that are no longer
+ * referenced, and re-encoding produces a single minimal update. Visible content
+ * is unchanged; only dead history is removed.
+ *
+ * Applied server-side when a document's state crosses a size threshold.
+ */
+export function compactState(state: Uint8Array): Uint8Array {
+  const doc = new Y.Doc(); // gc: true by default
+  Y.applyUpdate(doc, state);
+  const compacted = Y.encodeStateAsUpdate(doc);
+  doc.destroy();
+  return compacted;
+}
+
+/**
  * Computes the minimal delta a client is missing: the part of `canonical` that
  * is NOT covered by the client's state vector. Sending only this keeps sync
  * payloads tiny instead of shipping the whole document each time.

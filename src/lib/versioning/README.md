@@ -97,6 +97,22 @@ content (the current state already contains an ancestor version). Rebuilding the
 fragment with `revertContent` (`crdt.ts`) actually rolls the content back while
 staying a valid forward step. Step 1 makes it **reversible**, so no data is lost.
 
+## Document state size over time (bounding growth)
+
+A long-lived document would otherwise grow unbounded. Three sources, each handled:
+
+1. **CRDT tombstones** — deleted content leaves metadata behind. The server
+   **compacts** the canonical state once it crosses `COMPACT_THRESHOLD_BYTES`
+   (256 KB): it loads the state into a fresh, garbage-collected `Y.Doc` and
+   re-encodes, dropping dead history while keeping visible content identical
+   (`compactState` in `crdt.ts`).
+2. **Snapshot accumulation** — AUTO versions are pruned to the most recent
+   `MAX_AUTO_VERSIONS` (20); MANUAL versions are kept forever
+   (`pruneAutoVersions` in `service.ts`).
+3. **Inline images** — base64 inflates the CRDT (~33%); images are size-capped
+   today, with object-storage offload (embed URL only) as the documented next
+   step (`lib/image.ts`).
+
 ## Security notes (enforced at the boundary)
 
 - Sync/version payloads are **size-capped** and base64-validated before decoding
@@ -107,7 +123,6 @@ staying a valid forward step. Step 1 makes it **reversible**, so no data is lost
 
 ## Transport note
 
-Today sync runs over an HTTP endpoint (`POST /sync`) driven by the client
-engine (flush-on-reconnect + light polling). The merge logic is transport-
-agnostic, so swapping in a WebSocket server later changes only *how often* and
-*how* updates travel — not the merge itself.
+Persistence runs over HTTP (`POST /sync` → Postgres), and a standalone
+WebSocket relay (`sync-server/`) adds low-latency real-time propagation on top.
+The merge logic is transport-agnostic — both feed the same CRDT and converge.
