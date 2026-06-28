@@ -4,10 +4,17 @@ import { authConfig } from "@/auth.config";
 /**
  * Edge middleware that enforces authentication on protected routes.
  *
- * It is built from the lightweight, adapter-free `authConfig` so it can run on
- * the Edge runtime. The actual gating logic lives in the `authorized` callback.
+ * Built from the lightweight, adapter-free `authConfig` so it can run on the
+ * Edge runtime. The gating logic lives in the `authorized` callback.
+ *
+ * NOTE: Next.js 16's build statically scans this file for a function export and
+ * does NOT recognise a destructured `export const { auth: middleware }`. We
+ * therefore assign to a plain identifier and `export default` it, which the
+ * build detects reliably.
  */
-export const { auth: middleware } = NextAuth(authConfig);
+const { auth } = NextAuth(authConfig);
+
+export default auth;
 
 /**
  * Matcher: run middleware on everything EXCEPT Next.js internals, static
