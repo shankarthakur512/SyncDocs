@@ -125,7 +125,7 @@ export default function VersionHistoryPanel({
       )}
 
       {error && (
-        <p role="alert" className="mt-2 text-sm" style={{ color: "#b91c1c" }}>
+        <p role="alert" className="mt-2 text-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}
@@ -149,7 +149,7 @@ export default function VersionHistoryPanel({
                     style={{
                       backgroundColor:
                         v.kind === "MANUAL"
-                          ? "rgba(37, 99, 235, 0.15)"
+                          ? "var(--accent-soft)"
                           : "rgba(107, 114, 128, 0.18)",
                       color: v.kind === "MANUAL" ? "#2563eb" : "#6b7280",
                     }}

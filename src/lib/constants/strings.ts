@@ -6,11 +6,16 @@
  * for strings that interpolate values.
  */
 
-/** App identity. */
+/** App identity + landing copy (per the redesign spec). */
 export const APP = {
   name: "SyncDocs",
+  heroBadge: "Local-first: CRDT-powered sync",
+  heroTitle: "Writing that never waits for the network.",
   tagline:
-    "Write offline, sync automatically, collaborate in real time, and travel through version history.",
+    "Draft offline, sync automatically, collaborate in real time, and step back through every version — without ever losing a word.",
+  ctaPrimary: "Start writing — it's free",
+  ctaSecondary: "See how sync works",
+  ctaNote: "No credit card. Works offline from the first keystroke.",
 } as const;
 
 /** Feature highlights shown on the landing page. */
@@ -18,22 +23,22 @@ export const HOME_FEATURES = [
   {
     icon: "⚡",
     title: "Offline-first",
-    desc: "Open and edit instantly — no network required.",
+    desc: "Open and edit instantly. Every keystroke lands on this device first — the network is optional.",
   },
   {
     icon: "🔀",
     title: "Conflict-free sync",
-    desc: "Edits merge deterministically with zero data loss.",
+    desc: "CRDT merging means simultaneous edits combine deterministically. Zero data loss, ever.",
   },
   {
     icon: "🕑",
     title: "Version history",
-    desc: "Snapshot, preview, and restore any past version.",
+    desc: "Snapshot, preview, and restore any past version of a document with one click.",
   },
   {
     icon: "👥",
     title: "Roles & sharing",
-    desc: "Owner, Editor, Viewer — with secure access control.",
+    desc: "Owner, Editor and Viewer roles with secure, revocable access control per document.",
   },
 ] as const;
 
@@ -65,12 +70,31 @@ export const ACTIONS = {
   saveVersion: "Save version",
   saving: "Saving…",
   dismiss: "dismiss",
+  // AI
+  aiContinue: "Continue writing",
+  aiContinueHint: "Let AI continue writing from your cursor",
+  aiOfflineHint: "AI needs an internet connection",
+  aiStop: "Stop",
+  // Share link
+  share: "Share",
+  shareLink: "Share link",
+  enableLink: "Create link",
+  disableLink: "Remove link",
+  copyLink: "Copy",
+  copied: "Copied ✓",
 } as const;
 
 /** Section / control labels. */
 export const LABELS = {
   history: "History",
   collaborators: "Collaborators",
+  homeHeading: "Your documents",
+  homeSubtitle: "Stored securely, editable offline.",
+  newDocument: "New document",
+  filterAll: "All",
+  filterOwned: "Owned by me",
+  filterShared: "Shared with me",
+  sortNote: "Sorted by last edited",
   versionHistory: "Version history",
   yourDocuments: "Your documents",
   documentBody: "Document body",
@@ -78,6 +102,7 @@ export const LABELS = {
   collaboratorEmail: "Invite by email",
   versionLabel: "Optional label (e.g. 'Draft 1')",
   documentId: "ID",
+  renameHint: "Click to rename",
   snapshot: "Snapshot",
   readOnly: "Read-only",
   viewOnlyBanner:
@@ -133,6 +158,19 @@ export const MESSAGES = {
   // Editor
   editorPlaceholder:
     "Start writing… your work is saved on this device automatically.",
+
+  // AI
+  aiFailed: "AI could not continue writing. Please try again.",
+
+  // Guest / share link
+  shareLinkHelp:
+    "Anyone with the link can view this document — no sign-in needed.",
+  shareLinkOff: "Link sharing is off.",
+  shareInviteHint:
+    "Want to give edit access? Invite people by email in the Collaborators panel.",
+  guestBanner: "You're viewing a shared document.",
+  shareLinkInvalid:
+    "This share link is invalid or has been turned off by the owner.",
 } as const;
 
 /** Helpers for strings that include dynamic values. */

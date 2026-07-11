@@ -4,35 +4,100 @@
   Global CSS variables for light and dark themes.
   These are used throughout the app to ensure consistent theming.
  */
+/*
+ * Token palette per the SyncDocs redesign spec (light theme, indigo #4B5AE4,
+ * Instrument Sans chrome + Source Serif content). Flat professional surfaces —
+ * the accent is a single indigo, no gradients.
+ */
 :root,
 :root[data-theme="light"] {
-  --background: #f4f5f7;
+  --background: #f7f7f5; /* bg-app */
   --surface: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #2563eb;
+  --foreground: #17171c; /* ink */
+  --muted: #55555e; /* ink-secondary */
+  --faint: #8e8e99; /* ink-faint: timestamps, hints */
+  --border: #e7e7ea;
+  --accent: #4b5ae4;
+  --accent-soft: #eef0fc; /* tinted fills behind accent content */
+  --success: #1e7e46;
+  --warn: #e28b24; /* presence / attention */
+  --danger: #b42318;
 }
 
 :root[data-theme="dark"] {
-  --background: #0a0a0a;
-  --surface: #161618;
-  --foreground: #ededed;
-  --muted: #9ca3af;
-  --border: #2a2a2e;
-  --accent: #3b82f6;
+  --background: #101013;
+  --surface: #17171b;
+  --foreground: #ededf0;
+  --muted: #a3a3ad;
+  --faint: #77777f;
+  --border: #2a2a2f;
+  --accent: #7b88f0;
+  --accent-soft: rgba(75, 90, 228, 0.18);
+  --success: #34b56f;
+  --warn: #f0a24a;
+  --danger: #f87171;
 }
 
 /* No-JS fallback: honour the OS preference when no explicit theme is set. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --background: #0a0a0a;
-    --surface: #161618;
-    --foreground: #ededed;
-    --muted: #9ca3af;
-    --border: #2a2a2e;
-    --accent: #3b82f6;
+    --background: #101013;
+    --surface: #17171b;
+    --foreground: #ededf0;
+    --muted: #a3a3ad;
+    --faint: #77777f;
+    --border: #2a2a2f;
+    --accent: #7b88f0;
+    --accent-soft: rgba(75, 90, 228, 0.18);
+    --success: #34b56f;
+    --warn: #f0a24a;
+    --danger: #f87171;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Design-system utilities — small, shared building blocks that keep every     */
+/* surface visually consistent. Prefer these over ad-hoc inline styles.        */
+/* -------------------------------------------------------------------------- */
+
+/* Brand fill — the redesign is FLAT indigo (no gradients). Every element that
+   previously carried the gradient now resolves to the single accent. */
+.bg-brand {
+  background: var(--accent);
+}
+
+/* Display type — Source Serif for headlines & document content (spec: never
+   mix serif and sans within one element; all chrome stays Instrument Sans). */
+.font-display {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+/* Status/metadata pill — Live indicator, connection status, read-only chip. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+/* Elevated content container — doc cards, popovers, panels. */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Accessible keyboard focus — one consistent ring everywhere. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Smooth, non-jarring transition when toggling themes. */
@@ -62,12 +127,11 @@ html {
   animation: blob 16s ease-in-out infinite;
 }
 
-/* Brand gradient text (works in both themes). */
+/* Headline text — formerly a gradient; the redesign uses solid ink serif.
+   Kept as a class so existing markup restyles without edits. */
 .text-gradient {
-  background-image: linear-gradient(120deg, #2563eb, #7c3aed 50%, #ec4899);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--foreground);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -80,6 +144,8 @@ html,
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Interface chrome font (spec): Instrument Sans everywhere by default. */
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -91,28 +157,59 @@ body {
 .ProseMirror {
   outline: none;
   min-height: 60vh;
-  line-height: 1.7;
+  /* Spec: document CONTENT is Source Serif — the editor reads like print,
+     while all surrounding chrome stays Instrument Sans. */
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  caret-color: var(--accent);
+}
+
+/* Text selection in the brand colour — clear multi-line selection feedback. */
+.ProseMirror ::selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .ProseMirror > * + * {
   margin-top: 0.75em;
 }
 
+/* Extra breathing room above headings separates document sections visually. */
 .ProseMirror h1 {
   font-size: 1.875rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.25em;
 }
 
 .ProseMirror h2 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.25;
+  margin-top: 1.1em;
 }
 
 .ProseMirror h3 {
   font-size: 1.25rem;
   font-weight: 600;
+  margin-top: 1em;
+}
+
+/* First block should hug the top of the page. */
+.ProseMirror > :first-child {
+  margin-top: 0;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .ProseMirror ul,
@@ -155,6 +252,8 @@ body {
   height: auto;
   border-radius: 0.5rem;
   display: block;
+  /* Subtle lift so images read as content, not background. */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 /* Selected image highlight for clear visual feedback. */

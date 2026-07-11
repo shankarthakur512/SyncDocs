@@ -145,7 +145,7 @@ export default function VersionPreview({
 
         <div className="overflow-y-auto px-4 py-4">
           {error ? (
-            <p className="text-sm" style={{ color: "#b91c1c" }}>
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
               {error}
             </p>
           ) : doc ? (

@@ -32,15 +32,14 @@ export default function ConnectionStatus({ online, status }: ConnectionStatusPro
   const dotColor = !localSaved
     ? "#9ca3af" // gray: initializing
     : online
-      ? "#16a34a" // green: online
-      : "#f59e0b"; // amber: offline but safe locally
+      ? "var(--success)" // green: online
+      : "var(--warn)"; // amber: offline but safe locally
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium"
-      style={{ borderColor: "var(--border)" }}
+      className="chip"
       title={
         online
           ? "Your changes are stored on this device and the network is available."

@@ -82,6 +82,15 @@ export function useVersionedSync({
     if (syncingRef.current) return; // coalesce concurrent flushes
     syncingRef.current = true;
     setSyncState("syncing");
+
+    // RACE FIX: clear the dirty flag BEFORE encoding, not after the await.
+    // Any edit that lands while the push is in flight re-marks dirty (via the
+    // update listener) and is picked up by the follow-up flush below. Clearing
+    // it after the await used to wipe those in-flight edits' dirty mark,
+    // leaving them unsynced until the user happened to type again.
+    dirtyRef.current = false;
+
+    let pushedOk = false;
     try {
       const update = toBase64(encodeState(doc));
       const stateVector = toBase64(encodeVector(doc));
@@ -91,14 +100,19 @@ export function useVersionedSync({
       const delta = fromBase64(res.update);
       if (delta.length > 0) applyToDoc(doc, delta, SYNC_ORIGIN);
 
-      dirtyRef.current = false;
+      pushedOk = true;
       setLastSyncedAt(Date.now());
       setSyncState("idle");
     } catch {
-      // Keep dirty so we retry; surface the error state to the UI.
+      // Restore dirty so the poll/debounce retries; surface the error state.
+      dirtyRef.current = true;
       setSyncState("error");
     } finally {
       syncingRef.current = false;
+      // Edits arrived mid-push — sync them immediately instead of waiting for
+      // the next debounce/poll. Only after a SUCCESSFUL push (prevents a tight
+      // retry loop while the server is unreachable).
+      if (pushedOk && dirtyRef.current) void flushRef.current();
     }
   }, [doc, documentId, online, canWrite]);
 

@@ -1,3 +1,4 @@
+import { Github, Linkedin } from "lucide-react";
 import { AUTHOR } from "@/lib/constants/strings";
 
 /**
@@ -24,16 +25,18 @@ export default function Footer() {
             href={AUTHOR.githubUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline-offset-4 hover:text-[var(--accent)] hover:underline focus:text-[var(--accent)]"
+            className="inline-flex items-center gap-1.5 underline-offset-4 hover:text-[var(--accent)] hover:underline focus:text-[var(--accent)]"
           >
+            <Github size={14} strokeWidth={2} aria-hidden />
             {AUTHOR.githubLabel}
           </a>
           <a
             href={AUTHOR.linkedinUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline-offset-4 hover:text-[var(--accent)] hover:underline focus:text-[var(--accent)]"
+            className="inline-flex items-center gap-1.5 underline-offset-4 hover:text-[var(--accent)] hover:underline focus:text-[var(--accent)]"
           >
+            <Linkedin size={14} strokeWidth={2} aria-hidden />
             {AUTHOR.linkedinLabel}
           </a>
         </nav>

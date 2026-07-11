@@ -145,3 +145,31 @@ export function removeMember(
     method: "DELETE",
   });
 }
+
+// --- Guest share links (owner-managed) ---------------------------------------
+
+/** Current share token for a document (null = link sharing off). Owner only. */
+export function getShareToken(
+  documentId: string,
+): Promise<{ token: string | null }> {
+  return request(`/api/documents/${documentId}/share`);
+}
+
+/** Enables link sharing (idempotent) and returns the token. Owner only. */
+export function enableShareLink(
+  documentId: string,
+): Promise<{ token: string }> {
+  return request(`/api/documents/${documentId}/share`, { method: "POST" });
+}
+
+/** Disables link sharing — the public link stops working. Owner only. */
+export function disableShareLink(
+  documentId: string,
+): Promise<{ success: true }> {
+  return request(`/api/documents/${documentId}/share`, { method: "DELETE" });
+}
+
+/** Builds the public guest URL for a share token (browser only). */
+export function shareUrlFor(token: string): string {
+  return `${window.location.origin}/share/${token}`;
+}

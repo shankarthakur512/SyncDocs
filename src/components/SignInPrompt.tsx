@@ -1,89 +1,82 @@
 import Link from "next/link";
-import { ACTIONS, APP, HOME_FEATURES } from "@/lib/constants/strings";
+import { GitMerge, History, Users, Zap, type LucideIcon } from "lucide-react";
+import { APP, HOME_FEATURES } from "@/lib/constants/strings";
 
 /**
- * Landing hero shown to signed-out visitors.
- *
- * gradient "blobs" sit behind the content and are theme-independent.
+ * Icon per feature card (ordered to match HOME_FEATURES). Kept here rather
+ * than in the strings catalogue so copy stays pure data and rendering stays
+ * in the component layer.
+ */
+const FEATURE_ICONS: readonly LucideIcon[] = [Zap, GitMerge, History, Users];
+
+/**
+ * Landing hero shown to signed-out visitors — per the redesign spec:
+ * clean light surface, serif display headline, indigo primary CTA + quiet
+ * secondary, then a four-column feature strip. No decorative gradients.
  */
 export default function SignInPrompt() {
   return (
-    <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-20">
-      {/* Decorative background blobs. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div
-          className="animate-blob absolute -top-24 left-1/4 h-72 w-72 rounded-full blur-3xl"
-          style={{ background: "rgba(37, 99, 235, 0.30)" }}
-        />
-        <div
-          className="animate-blob absolute top-10 right-1/4 h-72 w-72 rounded-full blur-3xl"
-          style={{ background: "rgba(124, 58, 237, 0.28)", animationDelay: "3s" }}
-        />
-        <div
-          className="animate-blob absolute bottom-0 left-1/3 h-72 w-72 rounded-full blur-3xl"
-          style={{ background: "rgba(236, 72, 153, 0.22)", animationDelay: "6s" }}
-        />
-      </div>
-
+    <section className="flex flex-1 flex-col items-center px-4 pt-20 pb-16">
       <div className="mx-auto w-full max-w-3xl text-center">
-        <span
-          className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium"
-          style={{
-            borderColor: "var(--border)",
-            background: "color-mix(in srgb, var(--surface) 70%, transparent)",
-          }}
-        >
+        {/* Eyebrow badge. */}
+        <span className="chip text-[var(--muted)]">
           <span
             className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "#10b981" }}
+            style={{ background: "var(--success)" }}
           />
-          Local-first · CRDT-powered
+          {APP.heroBadge}
         </span>
 
-        <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-          <span className="text-gradient">{APP.name}</span>
+        {/* Display headline: Source Serif, solid ink (spec 1a). */}
+        <h1 className="font-display mx-auto mt-6 max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+          {APP.heroTitle}
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base text-[var(--muted)]">
           {APP.tagline}
         </p>
 
-        <Link
-          href="/signin"
-          className="mt-7 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5"
-          style={{
-            backgroundImage:
-              "linear-gradient(120deg, #2563eb, #7c3aed 60%, #ec4899)",
-          }}
-        >
-          {ACTIONS.signInToContinue}
-          <span aria-hidden>→</span>
-        </Link>
+        {/* CTAs: solid indigo primary + outline secondary. */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/signin"
+            className="bg-brand rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+          >
+            {APP.ctaPrimary}
+          </Link>
+          <a
+            href="#features"
+            className="rounded-lg border px-6 py-3 text-sm font-semibold transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            style={{ borderColor: "var(--border)" }}
+          >
+            {APP.ctaSecondary}
+          </a>
+        </div>
+        <p className="mt-3 text-xs" style={{ color: "var(--faint)" }}>
+          {APP.ctaNote}
+        </p>
 
-        {/* Feature cards. */}
-        <div className="mt-14 grid gap-4 text-left sm:grid-cols-2">
-          {HOME_FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md"
-              style={{
-                borderColor: "var(--border)",
-                background:
-                  "color-mix(in srgb, var(--surface) 88%, transparent)",
-              }}
-            >
-              <div className="flex items-center gap-3">
+        {/* Feature strip: four quiet columns with small accent icons. */}
+        <div
+          id="features"
+          className="mt-16 grid gap-8 border-t pt-10 text-left sm:grid-cols-2 lg:grid-cols-4"
+          style={{ borderColor: "var(--border)" }}
+        >
+          {HOME_FEATURES.map((f, i) => {
+            const Icon = FEATURE_ICONS[i] ?? Zap;
+            return (
+              <div key={f.title}>
                 <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-lg"
-                  style={{ background: "rgba(37, 99, 235, 0.12)" }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)]"
+                  style={{ background: "var(--accent-soft)" }}
                   aria-hidden
                 >
-                  {f.icon}
+                  <Icon size={16} strokeWidth={1.75} />
                 </span>
-                <h2 className="font-semibold">{f.title}</h2>
+                <h2 className="mt-3 text-sm font-semibold">{f.title}</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">{f.desc}</p>
               </div>
-              <p className="mt-2 text-sm text-[var(--muted)]">{f.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

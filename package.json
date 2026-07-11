@@ -36,7 +36,10 @@
     "@prisma/client": "^6.19.3",
     "zod": "^3.25.76",
     "@hocuspocus/provider": "^4.3.0",
-    "jose": "^6.2.3"
+    "jose": "^6.2.3",
+    "ai": "^7.0.18",
+    "@ai-sdk/google": "^4.0.8",
+    "lucide-react": "^0.469.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

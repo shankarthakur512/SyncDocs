@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
+import { Instrument_Sans, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+
+/**
+ * Type system per the design spec:
+ *  - Instrument Sans → ALL interface chrome (nav, buttons, labels, meta).
+ *  - Source Serif 4 → document content + display headlines only.
+ * Exposed as CSS variables so globals.css controls where each applies.
+ */
+const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif" });
 import AppHeader from "@/components/AppHeader";
 import Footer from "@/components/Footer";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -31,7 +41,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${sans.variable} ${serif.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>

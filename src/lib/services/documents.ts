@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { authorizeDocument, getDocumentRole } from "@/lib/rbac/authorize";
@@ -179,6 +180,71 @@ export async function removeMember(
   await prisma.documentMembership.delete({
     where: { documentId_userId: { documentId, userId: targetUserId } },
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Guest access via shareable link                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The share link is a CAPABILITY: possession of the unguessable token grants
+ * read-only access, with no account required. All management operations require
+ * `members:manage` (OWNER), mirroring collaborator management.
+ */
+
+/** Returns the current share token (or null if sharing is off). Owner only. */
+export async function getShareToken(userId: string, documentId: string) {
+  await authorizeDocument(userId, documentId, "members:manage");
+  const doc = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { shareToken: true },
+  });
+  if (!doc) throw new NotFoundError();
+  return doc.shareToken;
+}
+
+/**
+ * Enables link sharing, generating a fresh token if none exists yet.
+ * 192 bits of randomness, base64url — unguessable and URL-safe.
+ */
+export async function enableShareLink(userId: string, documentId: string) {
+  await authorizeDocument(userId, documentId, "members:manage");
+
+  const existing = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { shareToken: true },
+  });
+  if (existing?.shareToken) return existing.shareToken; // already enabled
+
+  const token = randomBytes(24).toString("base64url");
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { shareToken: token },
+  });
+  return token;
+}
+
+/** Disables link sharing — existing links stop working immediately. */
+export async function disableShareLink(userId: string, documentId: string) {
+  await authorizeDocument(userId, documentId, "members:manage");
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { shareToken: null },
+  });
+}
+
+/**
+ * Resolves a share token to its document's public metadata — the ONLY
+ * unauthenticated read path. Returns 404 for unknown/disabled tokens so probing
+ * reveals nothing (mirrors the membership 404 policy).
+ */
+export async function getDocumentByShareToken(token: string) {
+  const doc = await prisma.document.findUnique({
+    where: { shareToken: token },
+    select: { id: true, title: true, updatedAt: true },
+  });
+  if (!doc) throw new NotFoundError("Share link not found.");
+  return doc;
 }
 
 /**

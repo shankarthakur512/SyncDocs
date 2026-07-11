@@ -9,17 +9,20 @@ import { useRealtimeSync } from "@/lib/collab/useRealtimeSync";
 import {
   ApiError,
   getDocument,
+  renameDocument,
   type DocumentDetail,
 } from "@/lib/api/client";
 import { cacheDocDetail, readDocDetail } from "@/lib/cache/docCache";
 import { FORMAT, LABELS, MESSAGES } from "@/lib/constants/strings";
 import type { DocId } from "@/lib/collab/types";
+import { History, Users } from "lucide-react";
 import ConnectionStatus from "./ConnectionStatus";
 import EditorToolbar from "./EditorToolbar";
 import Editor from "./Editor";
 import RoleBadge from "./RoleBadge";
 import CollaboratorsPanel from "./CollaboratorsPanel";
 import VersionHistoryPanel from "./VersionHistoryPanel";
+import ShareMenu from "./ShareMenu";
 
 interface DocShellProps {
   docId: DocId;
@@ -44,6 +47,9 @@ export default function DocShell({ docId }: DocShellProps) {
   // Sidebars are independent — both can be open at once.
   const [showHistory, setShowHistory] = useState(false);
   const [showCollaborators, setShowCollaborators] = useState(false);
+  // Inline title rename (owners only): null = viewing, string = editing draft.
+  const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  const [savingTitle, setSavingTitle] = useState(false);
 
   /**
    * (Re)fetch document detail. LOCAL-FIRST: a failed fetch must never block the
@@ -107,10 +113,35 @@ export default function DocShell({ docId }: DocShellProps) {
     await refresh();
   }, [flush, refresh]);
 
+  /**
+   * Commits an inline title rename (owners only). No-ops on unchanged/empty
+   * drafts; optimistically updates local state + the offline cache on success.
+   */
+  const commitTitle = useCallback(async () => {
+    if (titleDraft === null || !detail) return;
+    const next = titleDraft.trim();
+    if (!next || next === detail.title) {
+      setTitleDraft(null); // nothing to save
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      await renameDocument(docId, next);
+      const updated = { ...detail, title: next };
+      setDetail(updated);
+      cacheDocDetail(updated); // keep the offline cache consistent
+      setTitleDraft(null);
+    } catch {
+      // Keep the draft so the user can retry or Escape to discard.
+    } finally {
+      setSavingTitle(false);
+    }
+  }, [titleDraft, detail, docId]);
+
   if (loadError) {
     return (
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-16 text-center">
-        <p className="text-sm" style={{ color: "#b91c1c" }}>
+        <p className="text-sm" style={{ color: "var(--danger)" }}>
           {loadError}
         </p>
       </main>
@@ -142,9 +173,43 @@ export default function DocShell({ docId }: DocShellProps) {
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-lg font-semibold">
-                {detail?.title ?? MESSAGES.loading}
-              </h1>
+              {isOwner && titleDraft !== null ? (
+                // Inline rename: Enter/blur saves, Escape discards.
+                <input
+                  autoFocus
+                  value={titleDraft}
+                  disabled={savingTitle}
+                  maxLength={200}
+                  aria-label={LABELS.newDocumentTitle}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onBlur={() => void commitTitle()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void commitTitle();
+                    if (e.key === "Escape") setTitleDraft(null);
+                  }}
+                  className="font-display min-w-0 rounded-md border px-2 py-0.5 text-lg font-semibold outline-none focus:border-[var(--accent)]"
+                  style={{
+                    borderColor: "var(--border)",
+                    background: "transparent",
+                  }}
+                />
+              ) : (
+                <h1
+                  className={[
+                    // Spec: page titles are Source Serif (document identity).
+                    "font-display truncate text-lg font-semibold",
+                    isOwner
+                      ? "cursor-text rounded-md px-1 -mx-1 transition-colors hover:bg-[rgba(127,127,127,0.10)]"
+                      : "",
+                  ].join(" ")}
+                  title={isOwner ? LABELS.renameHint : undefined}
+                  onClick={() => {
+                    if (isOwner && detail) setTitleDraft(detail.title);
+                  }}
+                >
+                  {detail?.title ?? MESSAGES.loading}
+                </h1>
+              )}
               {detail && <RoleBadge role={detail.role} />}
             </div>
             <p className="text-xs text-[var(--muted)]">
@@ -154,10 +219,11 @@ export default function DocShell({ docId }: DocShellProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Share (owners only) — the primary header action, Docs-style. */}
+            <ShareMenu documentId={docId} canManage={isOwner} />
             {liveStatus !== "disabled" && (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
-                style={{ borderColor: "var(--border)" }}
+                className="chip"
                 title={
                   liveStatus === "connected"
                     ? "Real-time collaboration is active"
@@ -168,7 +234,7 @@ export default function DocShell({ docId }: DocShellProps) {
                   className="h-1.5 w-1.5 rounded-full"
                   style={{
                     background:
-                      liveStatus === "connected" ? "#16a34a" : "#f59e0b",
+                      liveStatus === "connected" ? "var(--success)" : "var(--warn)",
                   }}
                 />
                 {liveStatus === "connected" ? "Live" : "Connecting…"}
@@ -185,11 +251,11 @@ export default function DocShell({ docId }: DocShellProps) {
                   style={{
                     borderColor: showHistory ? "var(--accent)" : "var(--border)",
                     ...(showHistory
-                      ? { background: "rgba(37,99,235,0.10)", color: "var(--accent)" }
+                      ? { background: "var(--accent-soft)", color: "var(--accent)" }
                       : {}),
                   }}
                 >
-                  <span aria-hidden>🕑</span>
+                  <History size={15} strokeWidth={2} aria-hidden />
                   {LABELS.history}
                 </button>
                 <button
@@ -202,11 +268,11 @@ export default function DocShell({ docId }: DocShellProps) {
                       ? "var(--accent)"
                       : "var(--border)",
                     ...(showCollaborators
-                      ? { background: "rgba(37,99,235,0.10)", color: "var(--accent)" }
+                      ? { background: "var(--accent-soft)", color: "var(--accent)" }
                       : {}),
                   }}
                 >
-                  <span aria-hidden>👥</span>
+                  <Users size={15} strokeWidth={2} aria-hidden />
                   {FORMAT.collaboratorsWithCount(detail.memberships.length)}
                 </button>
               </>
@@ -232,27 +298,40 @@ export default function DocShell({ docId }: DocShellProps) {
           </aside>
         )}
 
-        <div
-          className="min-w-0 flex-1"
-          style={{
-            backgroundImage:
-              "radial-gradient(60% 40% at 50% 0%, rgba(37,99,235,0.06), transparent 70%)",
-          }}
-        >
+        {/* Flat app canvas per the redesign — the page card provides contrast. */}
+        <div className="min-w-0 flex-1">
           {ready && doc ? (
             <Editor
               doc={doc}
+              documentId={docId}
+              online={online}
               editable={canEdit}
-              renderToolbar={({ editor, onAddImage }) => (
-                <EditorToolbar editor={editor} onAddImage={onAddImage} />
+              renderToolbar={({ editor, onAddImage, ai }) => (
+                <EditorToolbar editor={editor} onAddImage={onAddImage} ai={ai} />
               )}
             />
           ) : (
+            // Skeleton "page" while the local IndexedDB copy hydrates.
             <div
-              className="mx-auto w-full max-w-3xl px-4 py-12 text-sm text-[var(--muted)]"
+              className="mx-auto w-full max-w-3xl px-4 py-6"
               aria-busy="true"
+              aria-label={MESSAGES.loadingDocLocal}
             >
-              {MESSAGES.loadingDocLocal}
+              <div
+                className="animate-pulse rounded-xl border p-10 shadow-sm"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+              >
+                <div className="h-6 w-2/5 rounded bg-[rgba(127,127,127,0.15)]" />
+                <div className="mt-6 space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-3.5 rounded bg-[rgba(127,127,127,0.12)]"
+                      style={{ width: `${90 - i * 12}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

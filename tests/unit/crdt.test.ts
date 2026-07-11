@@ -55,6 +55,79 @@ describe("mergeState", () => {
   });
 });
 
+describe("conflict resolution: offline edit arriving AFTER a later online edit", () => {
+  /**
+   * The interview scenario:
+   *   1. Both clients start from the same base document.
+   *   2. Client A edits OFFLINE (earlier in wall-clock time).
+   *   3. Client B edits ONLINE (later), and B's update reaches the server FIRST.
+   *   4. A reconnects; A's older update arrives LAST.
+   *
+   * Expected behaviour: arrival order and wall-clock time are irrelevant.
+   * Yjs orders concurrent ops by (clientID, logical clock), so the server and
+   * every client converge on the SAME document containing BOTH edits.
+   */
+  it("preserves both edits and converges regardless of arrival order", () => {
+    // 1) Shared base document.
+    const base = new Y.Doc();
+    base.getText("t").insert(0, "Hello");
+    const baseState = encodeState(base);
+
+    // 2) Two clients hydrate from the same base…
+    const clientA = docFromState(baseState); // goes offline
+    const clientB = docFromState(baseState); // stays online
+
+    // …and edit the SAME position concurrently (worst case).
+    clientA.getText("t").insert(5, " from offline-A"); // earlier edit
+    clientB.getText("t").insert(5, " from online-B"); // later edit
+
+    const updateA = encodeState(clientA);
+    const updateB = encodeState(clientB);
+
+    // 3) Server receives B FIRST, then A (offline data arrives late)…
+    const serverBFirst = mergeState(mergeState(baseState, updateB), updateA);
+    // …and the counterfactual: A first, then B.
+    const serverAFirst = mergeState(mergeState(baseState, updateA), updateB);
+
+    const textBFirst = docFromState(serverBFirst).getText("t").toString();
+    const textAFirst = docFromState(serverAFirst).getText("t").toString();
+
+    // Deterministic: byte-order of arrival does not change the result.
+    expect(textBFirst).toEqual(textAFirst);
+    // Lossless: NEITHER edit was overwritten by the other.
+    expect(textBFirst).toContain("from offline-A");
+    expect(textBFirst).toContain("from online-B");
+  });
+
+  it("every client converges to the server's result after pulling", () => {
+    const base = new Y.Doc();
+    base.getText("t").insert(0, "Doc");
+    const baseState = encodeState(base);
+
+    const clientA = docFromState(baseState);
+    const clientB = docFromState(baseState);
+    clientA.getText("t").insert(3, " [A-offline]");
+    clientB.getText("t").insert(3, " [B-online]");
+
+    // Server merged in "wrong" (reverse-chronological) order.
+    const server = mergeState(
+      mergeState(baseState, encodeState(clientB)),
+      encodeState(clientA),
+    );
+
+    // Each client pulls the canonical state (idempotent re-apply of own ops).
+    const finalA = docFromState(mergeState(encodeState(clientA), server));
+    const finalB = docFromState(mergeState(encodeState(clientB), server));
+
+    expect(finalA.getText("t").toString()).toEqual(
+      finalB.getText("t").toString(),
+    );
+    expect(finalA.getText("t").toString()).toEqual(
+      docFromState(server).getText("t").toString(),
+    );
+  });
+});
+
 describe("revertContent (true revert)", () => {
   it("restores the editor content to a previous version", () => {
     const doc = new Y.Doc();

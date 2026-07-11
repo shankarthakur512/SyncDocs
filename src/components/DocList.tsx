@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronRight, FileText, Plus } from "lucide-react";
 import {
   ApiError,
   createDocument,
@@ -13,16 +14,27 @@ import { cacheDocList, readDocList } from "@/lib/cache/docCache";
 import { ACTIONS, FORMAT, LABELS, MESSAGES } from "@/lib/constants/strings";
 import RoleBadge from "./RoleBadge";
 
+/** Ownership filter tabs (spec 1b): All · Owned by me · Shared with me. */
+type Filter = "all" | "owned" | "shared";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: LABELS.filterAll },
+  { key: "owned", label: LABELS.filterOwned },
+  { key: "shared", label: LABELS.filterShared },
+];
+
 /**
- * Home-screen document list, backed by the database via the documents API.
+ * Documents dashboard — per the redesign spec:
+ * serif page heading with a count subtitle, an indigo "New document" action,
+ * ownership filter tabs, and a quiet table-style row list (not cards).
  *
- * Fetches the signed-in user's documents on mount and lets them create a new
- * one (which makes them OWNER) and jump straight into the editor.
+ * Data flow unchanged: list on mount with offline cache fallback; creating a
+ * document makes the caller OWNER and navigates straight into the editor.
  */
 export default function DocList() {
   const router = useRouter();
   const [docs, setDocs] = useState<DocumentSummary[]>([]);
-  const [title, setTitle] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +51,6 @@ export default function DocList() {
       })
       .catch((err: unknown) => {
         if (!active) return;
-        // Offline / failure: show the last known list instead of an error.
         const cached = readDocList();
         if (cached) {
           setDocs(cached);
@@ -60,12 +71,13 @@ export default function DocList() {
     };
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Creates a blank document and opens it. */
+  const create = async () => {
+    if (creating) return;
     setCreating(true);
     setError(null);
     try {
-      const { document } = await createDocument(title.trim() || undefined);
+      const { document } = await createDocument();
       router.push(`/doc/${document.id}`);
     } catch (err) {
       setError(
@@ -75,91 +87,120 @@ export default function DocList() {
     }
   };
 
-  return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
-      {/* Hero card: title + create form on a subtle brand gradient. */}
-      <div
-        className="rounded-2xl border p-6 shadow-sm sm:p-8"
-        style={{
-          borderColor: "var(--border)",
-          backgroundImage:
-            "linear-gradient(135deg, rgba(37,99,235,0.10), rgba(124,58,237,0.07) 55%, rgba(236,72,153,0.06))",
-        }}
-      >
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          <span className="text-gradient">{LABELS.yourDocuments}</span>
-        </h1>
-        <p className="mt-1 max-w-md text-sm text-[var(--muted)]">
-          {MESSAGES.docsHelp}
-        </p>
+  // The list is already server-sorted by last edited; tabs only filter.
+  const visible = useMemo(() => {
+    if (filter === "owned") return docs.filter((d) => d.role === "OWNER");
+    if (filter === "shared") return docs.filter((d) => d.role !== "OWNER");
+    return docs;
+  }, [docs, filter]);
 
-        <form onSubmit={handleCreate} className="mt-6 flex gap-2">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={LABELS.newDocumentTitle}
-            aria-label={LABELS.newDocumentTitle}
-            maxLength={200}
-            className="flex-1 rounded-lg border px-3.5 py-2.5 text-sm shadow-sm outline-none transition-colors focus:border-[var(--accent)]"
-            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-          />
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:-translate-y-0.5 disabled:opacity-50"
-            style={{
-              backgroundImage:
-                "linear-gradient(120deg, #2563eb, #7c3aed 70%, #ec4899)",
-            }}
-          >
-            {creating ? ACTIONS.creating : ACTIONS.create}
-          </button>
-        </form>
+  return (
+    <section className="mx-auto w-full max-w-4xl px-4 py-10">
+      {/* Heading row: serif title + count, primary action right. */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            {LABELS.homeHeading}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {docs.length} {docs.length === 1 ? "document" : "documents"} ·{" "}
+            {LABELS.homeSubtitle}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={creating}
+          onClick={() => void create()}
+          className="bg-brand inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          <Plus size={15} strokeWidth={2.25} aria-hidden />
+          {creating ? ACTIONS.creating : LABELS.newDocument}
+        </button>
+      </div>
+
+      {/* Filter tabs + sort note. */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+        <div
+          role="tablist"
+          aria-label="Filter documents"
+          className="flex items-center gap-1"
+        >
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              role="tab"
+              aria-selected={filter === f.key}
+              onClick={() => setFilter(f.key)}
+              className={[
+                "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                filter === f.key
+                  ? "text-white"
+                  : "text-[var(--muted)] hover:bg-[rgba(127,127,127,0.10)]",
+              ].join(" ")}
+              style={filter === f.key ? { background: "var(--accent)" } : {}}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs" style={{ color: "var(--faint)" }}>
+          {LABELS.sortNote}
+        </span>
       </div>
 
       {error && (
-        <p role="alert" className="mt-3 text-sm" style={{ color: "#b91c1c" }}>
+        <p role="alert" className="mt-4 text-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}
 
-      <div className="mt-8">
+      {/* Row list (table-style, spec 1b). */}
+      <div className="card mt-4 overflow-hidden">
         {loading ? (
-          <p className="text-sm text-[var(--muted)]">{MESSAGES.loading}</p>
-        ) : docs.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">{MESSAGES.noDocuments}</p>
+          <ul aria-busy="true" className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {[...Array(4)].map((_, i) => (
+              <li key={i} className="flex animate-pulse items-center gap-3 px-4 py-4">
+                <div className="h-8 w-8 rounded-lg bg-[rgba(127,127,127,0.15)]" />
+                <div className="flex-1">
+                  <div className="h-4 w-1/3 rounded bg-[rgba(127,127,127,0.15)]" />
+                  <div className="mt-2 h-3 w-1/5 rounded bg-[rgba(127,127,127,0.12)]" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : visible.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-[var(--muted)]">
+            {MESSAGES.noDocuments}
+          </p>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {docs.map((doc) => (
+          <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
+            {visible.map((doc) => (
               <li key={doc.id}>
                 <Link
                   href={`/doc/${doc.id}`}
-                  className="group block rounded-xl border p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md"
-                  style={{
-                    borderColor: "var(--border)",
-                    background: "var(--surface)",
-                  }}
+                  className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--accent-soft)]"
                 >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm"
-                        style={{ background: "rgba(37, 99, 235, 0.12)" }}
-                        aria-hidden
-                      >
-                        📄
-                      </span>
-                      <span className="truncate font-medium">{doc.title}</span>
-                    </span>
-                    <RoleBadge role={doc.role} />
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--accent)]"
+                    style={{ background: "var(--accent-soft)" }}
+                    aria-hidden
+                  >
+                    <FileText size={15} strokeWidth={1.75} />
                   </span>
-                  <span className="mt-2 flex items-center justify-between text-xs text-[var(--muted)]">
-                    {FORMAT.updatedAt(doc.updatedAt)}
-                    <span className="text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100">
-                      Open →
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {doc.title}
+                    </span>
+                    <span className="mt-0.5 block text-xs" style={{ color: "var(--faint)" }}>
+                      {FORMAT.updatedAt(doc.updatedAt)}
                     </span>
                   </span>
+                  <RoleBadge role={doc.role} />
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-hidden
+                  />
                 </Link>
               </li>
             ))}

@@ -102,7 +102,7 @@ export default function CollaboratorsPanel({
       )}
 
       {error && (
-        <p role="alert" className="mt-2 text-sm" style={{ color: "#b91c1c" }}>
+        <p role="alert" className="mt-2 text-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}

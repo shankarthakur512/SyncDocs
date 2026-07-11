@@ -28,6 +28,12 @@ export type RealtimeStatus =
 export function useRealtimeSync(
   doc: Y.Doc | null,
   documentId: string,
+  /**
+   * Endpoint that mints the relay JWT. Defaults to the member endpoint;
+   * guest views pass `/api/share/<token>/sync-token` instead, which mints a
+   * VIEWER (read-only) token without a session.
+   */
+  tokenUrl?: string,
 ): { status: RealtimeStatus } {
   const [status, setStatus] = useState<RealtimeStatus>(
     WS_URL ? "connecting" : "disabled",
@@ -36,6 +42,8 @@ export function useRealtimeSync(
   useEffect(() => {
     if (!doc || !WS_URL) return;
 
+    const endpoint = tokenUrl ?? `/api/documents/${documentId}/sync-token`;
+
     const provider = new HocuspocusProvider({
       url: WS_URL,
       name: documentId,
@@ -43,7 +51,7 @@ export function useRealtimeSync(
       // A function token is re-evaluated on (re)connect, so it never expires
       // mid-session — the relay always receives a fresh, document-scoped JWT.
       token: async () => {
-        const res = await fetch(`/api/documents/${documentId}/sync-token`);
+        const res = await fetch(endpoint);
         if (!res.ok) throw new Error("Could not obtain sync token.");
         const { token } = (await res.json()) as { token: string };
         return token;
@@ -63,7 +71,7 @@ export function useRealtimeSync(
     return () => {
       provider.destroy();
     };
-  }, [doc, documentId]);
+  }, [doc, documentId, tokenUrl]);
 
   return { status };
 }

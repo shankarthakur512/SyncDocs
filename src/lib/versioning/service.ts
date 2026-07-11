@@ -50,10 +50,16 @@ async function loadCanonical(documentId: string): Promise<Uint8Array> {
  * Merges a client's offline update into the canonical state and returns the
  * delta the client is missing. THIS is the offline→online reconciliation.
  *
- * Wrapped in a transaction so the read-merge-write is atomic. (Note: under high
- * concurrency a row lock would further harden this; in practice writes funnel
- * through one authority. Even a lost write is non-fatal because merges are
- * commutative — the next sync re-reconciles.)
+ * CONCURRENCY (lost-update fix): the read-merge-write below is guarded by a
+ * row-level lock on the parent Document (SELECT … FOR UPDATE). Without it, two
+ * simultaneous syncs could both read the same canonical state, each merge only
+ * their own update, and the second UPSERT would silently overwrite the first —
+ * dropping the losing client's edits from the server (e.g. an offline user's
+ * queued changes arriving at the same moment as an online user's edit). With
+ * the lock, concurrent syncs serialize per document: each merge sees the
+ * previous one's result, so NO update is ever lost regardless of arrival order.
+ * Wall-clock time never matters — Yjs orders concurrent edits by (clientID,
+ * logical clock), so the merged result is identical on every replica.
  */
 export async function syncDocument(
   userId: string,
@@ -66,6 +72,10 @@ export async function syncDocument(
   const incoming = fromBase64(updateB64);
 
   const merged = await prisma.$transaction(async (tx) => {
+    // Serialize concurrent syncs for THIS document only (other documents are
+    // unaffected). The lock is held until the transaction commits.
+    await tx.$queryRaw`SELECT id FROM "Document" WHERE id = ${documentId} FOR UPDATE`;
+
     const row = await tx.documentState.findUnique({ where: { documentId } });
     const canonical = row ? new Uint8Array(row.state) : emptyState();
 
@@ -199,6 +209,10 @@ export async function restoreVersion(
   const target = new Uint8Array(version.state);
 
   await prisma.$transaction(async (tx) => {
+    // Same per-document lock as syncDocument: a sync racing this restore must
+    // wait, so the safety snapshot + revert operate on a stable state.
+    await tx.$queryRaw`SELECT id FROM "Document" WHERE id = ${documentId} FOR UPDATE`;
+
     const row = await tx.documentState.findUnique({ where: { documentId } });
     const current = row ? new Uint8Array(row.state) : emptyState();
 
@@ -252,5 +266,21 @@ export async function readCanonicalState(
 ): Promise<string> {
   await authorizeDocument(userId, documentId, "document:read");
   const state = await loadCanonical(documentId);
+  return toBase64(state);
+}
+
+/**
+ * GUEST hydration: read the canonical state via a share-link token instead of a
+ * membership. The token itself IS the authorization (an unguessable, revocable
+ * capability), so no user id is involved. Read-only by construction — there is
+ * deliberately no token-based counterpart to {@link syncDocument}.
+ */
+export async function readStateByShareToken(token: string): Promise<string> {
+  const doc = await prisma.document.findUnique({
+    where: { shareToken: token },
+    select: { id: true },
+  });
+  if (!doc) throw new NotFoundError("Share link not found.");
+  const state = await loadCanonical(doc.id);
   return toBase64(state);
 }

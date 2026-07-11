@@ -38,13 +38,10 @@ export default async function SignInPage() {
     <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-16">
       {/* Decorative background blobs. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        {/* Single quiet indigo tint — the redesign avoids multicolour effects. */}
         <div
           className="animate-blob absolute -top-20 -left-10 h-72 w-72 rounded-full blur-3xl"
-          style={{ background: "rgba(37, 99, 235, 0.28)" }}
-        />
-        <div
-          className="animate-blob absolute -bottom-24 -right-10 h-72 w-72 rounded-full blur-3xl"
-          style={{ background: "rgba(236, 72, 153, 0.22)", animationDelay: "4s" }}
+          style={{ background: "color-mix(in srgb, var(--accent) 22%, transparent)" }}
         />
       </div>
 
@@ -53,13 +50,7 @@ export default async function SignInPage() {
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       >
         {/* Gradient banner. */}
-        <div
-          className="px-8 py-7 text-center text-white"
-          style={{
-            backgroundImage:
-              "linear-gradient(120deg, #2563eb, #7c3aed 60%, #ec4899)",
-          }}
-        >
+        <div className="bg-brand px-8 py-7 text-center text-white">
           <h1 className="text-xl font-bold tracking-tight">{APP.name}</h1>
           <p className="mt-1 text-sm text-white/85">Welcome back</p>
         </div>

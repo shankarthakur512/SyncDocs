@@ -112,6 +112,12 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Secret capability token for guest access: anyone who knows the link
+  /// `/share/<token>` may VIEW the document without an account. `null` means
+  /// link sharing is off. Unguessable (192-bit random) and revocable — the
+  /// owner can disable or rotate it at any time.
+  shareToken String? @unique
+
   // The owner is denormalised here for fast checks and cascade deletes; the
   // authoritative permission is still the OWNER membership row.
   owner       User                 @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
